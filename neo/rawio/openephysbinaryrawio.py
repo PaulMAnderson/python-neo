@@ -309,6 +309,9 @@ class OpenEphysBinaryRawIO(BaseRawWithBufferApiIO):
                             info["timestamps"] = timestamps[rising_indices]
                             info["labels"] = labels[rising_indices]
                             info["durations"] = durations
+                            global_ts = info.get("global_timestamps")
+                            if global_ts is not None and len(global_ts) > 0:
+                                info["global_timestamps"] = global_ts[rising_indices]
 
         # no spike read yet
         # can be implemented on user demand
@@ -397,7 +400,7 @@ class OpenEphysBinaryRawIO(BaseRawWithBufferApiIO):
                     else:
                         selected_indices = None
                     for k in _possible_event_stream_names:
-                        if k in ("timestamps", "rising"):
+                        if k in ("timestamps", "rising","global_timestamps"):
                             continue
                         if k in info:
                             # split custom dtypes into separate annotations
@@ -495,6 +498,7 @@ class OpenEphysBinaryRawIO(BaseRawWithBufferApiIO):
 
 _possible_event_stream_names = (
     "timestamps",
+    "global_timestamps", # This is derived from synchronisation steps
     "sample_numbers",
     "channels",
     "text",
@@ -625,12 +629,18 @@ def explore_folder(dirname, experiment_names=None):
                     timestamp0 = timestamps[0]
                     t_start = timestamp0 / info["sample_rate"]
 
+                    # Code to load global timestamps (if available, these come from barcode synchronisation)
+                    global_timestamps = recording_folder / "continuous" / info["folder_name"] / "global_timestamps.npy"
+                    if not global_timestamps.is_file():
+                        global_timestamps = None
+
                     # TODO for later : gap checking
                     signal_stream = info.copy()
                     signal_stream["raw_filename"] = str(raw_filename)
                     signal_stream["dtype"] = "int16"
                     signal_stream["timestamp0"] = timestamp0
                     signal_stream["t_start"] = t_start
+                    signal_stream["global_timestamps"] = global_timestamps
 
                     recording["streams"]["continuous"][stream_name] = signal_stream
 
